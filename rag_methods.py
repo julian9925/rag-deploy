@@ -8,6 +8,7 @@ from langchain_community.document_loaders import (
     WebBaseLoader, 
     PyPDFLoader, 
     Docx2txtLoader,
+    UnstructuredImageLoader,
 )
 # pip install docx2txt, pypdf
 from langchain_community.vectorstores import Chroma
@@ -47,6 +48,8 @@ def load_doc_to_db():
                     with open(file_path, "wb") as file:
                         file.write(doc_file.read())
 
+                    print(doc_file.type)
+
                     try:
                         if doc_file.type == "application/pdf":
                             loader = PyPDFLoader(file_path)
@@ -54,6 +57,28 @@ def load_doc_to_db():
                             loader = Docx2txtLoader(file_path)
                         elif doc_file.type in ["text/plain", "text/markdown"]:
                             loader = TextLoader(file_path)
+                        # current RAG not supported for images
+                        # elif doc_file.type.startswith('image/'):
+                        #     print("Image file detected")
+                        #     try:
+                        #         from PIL import Image
+                        #         import pytesseract  # for OCR
+                                
+                        #         # Convert image to text using OCR
+                        #         image = Image.open(file_path)
+                        #         text = pytesseract.image_to_string(image)
+                                
+                        #         # Create a simple document from the extracted text
+                        #         from langchain_core.documents import Document
+                        #         docs.append(Document(
+                        #             page_content=text,
+                        #             metadata={"source": doc_file.name}
+                        #         ))
+                        #         continue  # Skip the docs.extend(loader.load()) below
+                                
+                        #     except ImportError:
+                        #         st.warning("Missing required packages for image processing. Please install: pip install pillow pytesseract")
+                        #         continue
                         else:
                             st.warning(f"Document type {doc_file.type} not supported.")
                             continue
@@ -179,3 +204,41 @@ def stream_llm_rag_response(llm_stream, messages):
         yield chunk
 
     st.session_state.messages.append({"role": "assistant", "content": response_message})
+
+
+def get_session_state_info():
+    """Returns information about the current session state storage usage including volume sizes"""
+    info = {
+        "Documents": {
+            "count": len(st.session_state.get("rag_sources", [])),
+            "sources": st.session_state.get("rag_sources", []),
+        },
+        "Vector DB": {
+            "collections": [],
+            "size_mb": 0
+        },
+        "Chat History": {
+            "messages": len(st.session_state.get("messages", [])),
+            "size_kb": 0
+        }
+    }
+    
+    # Calculate Vector DB size if available
+    if "vector_db" in st.session_state:
+        chroma_client = st.session_state.vector_db._client
+        collections = chroma_client.list_collections()
+        info["Vector DB"]["collections"] = [collection.name for collection in collections]
+        
+        # Estimate vector DB size (each embedding is approximately 1536 dimensions * 4 bytes)
+        total_embeddings = sum(collection.count() for collection in collections)
+        vector_size_bytes = total_embeddings * 1536 * 4  # 1536 dimensions * 4 bytes per float
+        info["Vector DB"]["size_mb"] = round(vector_size_bytes / (1024 * 1024), 2)  # Convert to MB
+    
+    # Calculate chat history size
+    if "messages" in st.session_state:
+        import sys
+        import json
+        messages_str = json.dumps(st.session_state.messages)
+        info["Chat History"]["size_kb"] = round(sys.getsizeof(messages_str) / 1024, 2)  # Convert to KB
+    
+    return info
