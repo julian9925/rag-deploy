@@ -62,17 +62,17 @@ jobs:
         run: unzip release.zip
 
       
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_DADA0F825468491B91414F048ED75E1B }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_CD485A2DB50940FAAAF527825D4B219A }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_445C0D64490F418BA1DC65D345764FE5 }}
+      # - name: Login to Azure
+      #   uses: azure/login@v2
+      #   with:
+      #     client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_DADA0F825468491B91414F048ED75E1B }}
+      #     tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_CD485A2DB50940FAAAF527825D4B219A }}
+      #     subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_445C0D64490F418BA1DC65D345764FE5 }}
 
-      - name: 'Deploy to Azure Web App'
-        uses: azure/webapps-deploy@v3
-        id: deploy-to-webapp
-        with:
-          app-name: 'rag-llm-app'
-          slot-name: 'Production'
+      # - name: 'Deploy to Azure Web App'
+      #   uses: azure/webapps-deploy@v3
+      #   id: deploy-to-webapp
+      #   with:
+      #     app-name: 'rag-llm-app'
+      #     slot-name: 'Production'
           
