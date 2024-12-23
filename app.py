@@ -4,10 +4,10 @@ import dotenv
 import uuid
 
 # check if it's linux so it works on Streamlit Cloud
-if os.name == 'posix':
-    __import__('pysqlite3')
-    import sys
-    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+# if os.name == 'posix' and os.uname().sysname == 'Linux':
+#     __import__('pysqlite3')
+#     import sys
+#     sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
 from langchain_anthropic import ChatAnthropic
@@ -16,6 +16,7 @@ from langchain.schema import HumanMessage, AIMessage
 from rag_methods import (
     load_doc_to_db, 
     load_url_to_db,
+    get_session_state_info,
     stream_llm_response,
     stream_llm_rag_response,
 )
@@ -85,7 +86,6 @@ with st.sidebar:
         az_openai_api_key = os.getenv("AZ_OPENAI_API_KEY")
         st.session_state.az_openai_api_key = az_openai_api_key
 
-
 # --- Main Content ---
 # Checking if the user has introduced the OpenAI API Key, if not, a warning is displayed
 missing_openai = openai_api_key == "" or openai_api_key is None or "sk-" not in openai_api_key
@@ -129,9 +129,10 @@ else:
         st.header("RAG Sources:")
             
         # File upload input for RAG with documents
+        ## bigger file larger than 200MB need to be uploaded to a cloud storage and then the URL should be introduced in the URL input
         st.file_uploader(
             "📄 Upload a document", 
-            type=["pdf", "txt", "docx", "md"],
+            type=["pdf", "txt", "docx", "md", "png", "jpg", "jpeg", "gif"],
             accept_multiple_files=True,
             on_change=load_doc_to_db,
             key="rag_docs",
@@ -147,8 +148,31 @@ else:
 
         with st.expander(f"📚 Documents in DB ({0 if not is_vector_db_loaded else len(st.session_state.rag_sources)})"):
             st.write([] if not is_vector_db_loaded else [source for source in st.session_state.rag_sources])
-
+            
+        # Add conversation history section
+        st.divider()
+        st.header("💬 Chat History")
+        
+        # Show conversation history
+        if "messages" in st.session_state and len(st.session_state.messages) > 0:
+            for msg in st.session_state.messages:
+                with st.expander(
+                    f"{'👤 User' if msg['role'] == 'user' else '🤖 Assistant'}", 
+                    expanded=False
+                ):
+                    st.write(msg["content"])
+        
+        # Add clear history button
+        if st.button("🗑️ Clear History", type="secondary"):
+            st.session_state.messages = []
+            st.rerun()
     
+        # Add session storage size info
+        st.divider()
+        st.header("Session Storage Size")
+        st.write("Storage size: ")
+        st.json(get_session_state_info())
+
     # Main chat app
     model_provider = st.session_state.model.split("/")[0]
     if model_provider == "openai":
@@ -181,6 +205,7 @@ else:
             st.markdown(message["content"])
 
     if prompt := st.chat_input("Your message"):
+        # Add user message to state and display it
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
@@ -192,15 +217,15 @@ else:
             messages = [HumanMessage(content=m["content"]) if m["role"] == "user" else AIMessage(content=m["content"]) for m in st.session_state.messages]
 
             if not st.session_state.use_rag:
-                st.write_stream(stream_llm_response(llm_stream, messages))
+                response = st.write_stream(stream_llm_response(llm_stream, messages))
             else:
-                st.write_stream(stream_llm_rag_response(llm_stream, messages))
+                response = st.write_stream(stream_llm_rag_response(llm_stream, messages))
 
 
-with st.sidebar:
-    st.divider()
-    st.video("https://youtu.be/abMwFViFFhI")
-    st.write("📋[Medium Blog](https://medium.com/@enricdomingo/program-a-rag-llm-chat-app-with-langchain-streamlit-o1-gtp-4o-and-claude-3-5-529f0f164a5e)")
-    st.write("📋[GitHub Repo](https://github.com/enricd/rag_llm_app)")
+# with st.sidebar:
+#     st.divider()
+#     st.video("https://youtu.be/abMwFViFFhI")
+#     st.write("📋[Medium Blog](https://medium.com/@enricdomingo/program-a-rag-llm-chat-app-with-langchain-streamlit-o1-gtp-4o-and-claude-3-5-529f0f164a5e)")
+#     st.write("📋[GitHub Repo](https://github.com/enricd/rag_llm_app)")
 
     
