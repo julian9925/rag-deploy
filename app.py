@@ -2,6 +2,8 @@ import streamlit as st
 import os
 import dotenv
 import uuid
+from datetime import datetime
+from fpdf import FPDF
 
 # check if it's linux so it works on Streamlit Cloud
 # if os.name == 'posix' and os.uname().sysname == 'Linux':
@@ -166,6 +168,56 @@ else:
         if st.button("🗑️ Clear History", type="secondary"):
             st.session_state.messages = []
             st.rerun()
+            
+        # Add export buttons
+        st.divider()
+        st.header("Export Chat History")
+        export_txt, export_pdf = st.columns(2)
+        
+        with export_txt:
+            if st.button("📄 Export as TXT"):
+                if len(st.session_state.messages) > 0:
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    filename = f"chat_history_{timestamp}.txt"
+                    
+                    with open(filename, "w", encoding="utf-8") as f:
+                        for msg in st.session_state.messages:
+                            f.write(f"{'User' if msg['role'] == 'user' else 'Assistant'}: {msg['content']}\n\n")
+                    
+                    with open(filename, "r", encoding="utf-8") as f:
+                        st.download_button(
+                            label="Download TXT",
+                            data=f.read(),
+                            file_name=filename,
+                            mime="text/plain"
+                        )
+                else:
+                    st.warning("No messages to export!")
+                    
+        with export_pdf:
+            if st.button("📑 Export as PDF"):
+                if len(st.session_state.messages) > 0:
+                    pdf = FPDF()
+                    pdf.add_page()
+                    pdf.set_font("Arial", size=12)
+                    
+                    for msg in st.session_state.messages:
+                        pdf.multi_cell(0, 10, f"{'User' if msg['role'] == 'user' else 'Assistant'}: {msg['content']}\n")
+                        pdf.ln(5)
+                    
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    filename = f"chat_history_{timestamp}.pdf"
+                    pdf.output(filename)
+                    
+                    with open(filename, "rb") as f:
+                        st.download_button(
+                            label="Download PDF",
+                            data=f.read(),
+                            file_name=filename,
+                            mime="application/pdf"
+                        )
+                else:
+                    st.warning("No messages to export!")
     
         # Add session storage size info
         st.divider()
